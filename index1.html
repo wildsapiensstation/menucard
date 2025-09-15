@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Restaurant - Order Food</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-image: url('bg.jpeg'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; }
+        h1 { font-family: 'Brush Script MT', cursive; font-size: 40px; color: #ffffff; }
+        .category-button { display: block; width: 80%; margin: 10px auto; padding: 15px; font-size: 22px; background-color: #3498db; color: white; border: none; cursor: pointer; border-radius: 5px; }
+        .menu-section { display: none; }
+        .menu-item { display: flex; justify-content: space-between; align-items: center; width: 80%; margin: 10px auto; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 20px; background: #f9f9f9; }
+        .quantity-controls { display: flex; align-items: center; }
+        .quantity-controls button { padding: 8px 15px; font-size: 18px; background-color: red; color: white; border: none; cursor: pointer; margin: 0 5px; border-radius: 5px; }
+        .quantity-controls span { width: 30px; display: inline-block; text-align: center; font-size: 18px; }
+        #total { font-size: 22px; font-weight: bold; margin-top: 20px; color: white;}
+        .order-button { background-color: green; color: white; padding: 12px 20px; border: none; font-size: 20px; margin-top: 20px; cursor: pointer; border-radius: 5px; }
+        .error-message { color: red; font-size: 18px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Demo Restaurant</h1>
+
+    <button class="category-button" onclick="showCategory('beverages')">Beverages</button>
+    <button class="category-button" onclick="showCategory('breakfast')">Breakfast</button>
+    <button class="category-button" onclick="showCategory('lunch')">Lunch</button>
+    <button class="category-button" onclick="showCategory('dinner')">Dinner</button>
+
+    <div id="beverages" class="menu-section">
+        <h2>Beverages:</h2>
+        <div class="menu-list"></div>
+    </div>
+    <div id="breakfast" class="menu-section">
+        <h2>Breakfast:</h2>
+        <div class="menu-list"></div>
+    </div>
+    <div id="lunch" class="menu-section">
+        <h2>Lunch:</h2>
+        <div class="menu-list"></div>
+    </div>
+    <div id="dinner" class="menu-section">
+        <h2>Dinner:</h2>
+        <div class="menu-list"></div>
+    </div>
+    <div id="total">Total Bill: ₹0</div>
+    <br><br>
+    <button class="order-button" onclick="placeOrder()">Order Now</button>
+    <!-- Firebase SDK (compat for easy HTML integration) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCQ780suirYkoWnyiTElsulpPLep7jZOBs",
+            authDomain: "fir-restaurants-5a977.firebaseapp.com",
+            projectId: "fir-restaurants-5a977",
+            storageBucket: "fir-restaurants-5a977.firebasestorage.app",
+            messagingSenderId: "536510676521",
+            appId: "1:536510676521:web:6a9777efcd5b2508afa638",
+            measurementId: "G-5SSTY9BBYT"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Maps: id -> price; id -> quantity; id -> name (for order summary)
+        let prices = {};
+        let quantities = {};
+        let idToName = {};
+
+        function renderMenus(menuItems) {
+            const categories = ["beverages", "breakfast", "lunch", "dinner"];
+            categories.forEach(cat => {
+                const section = document.getElementById(cat).querySelector('.menu-list');
+                section.innerHTML = "";
+                let catItems = menuItems.filter(item => Array.isArray(item.categories) && item.categories.includes(cat));
+                catItems.forEach(item => {
+                    let itemKey = item.id; // Firestore ID = truly unique key
+                    prices[itemKey] = item.price;
+                    idToName[itemKey] = item.name;
+                    if (!(itemKey in quantities)) quantities[itemKey] = 0;
+                    section.innerHTML += `
+                    <div class="menu-item">
+                        <span>${item.name} - ₹${item.price}</span>
+                        <div class="quantity-controls">
+                            <button onclick="updateQuantity('${itemKey}', -1)">-</button>
+                            <span id="${itemKey}-qty">0</span>
+                            <button onclick="updateQuantity('${itemKey}', 1)">+</button>
+                        </div>
+                    </div>`;
+                });
+            });
+        }
+
+        db.collection("menuItems").get().then(snap => {
+            let items = [];
+            snap.forEach(doc => items.push({id: doc.id, ...doc.data()}));
+            renderMenus(items);
+        });
+
+        function showCategory(category) {
+            let now = new Date();
+            let hour = now.getHours();
+            let minute = now.getMinutes();
+            let currentTime = hour * 60 + minute;
+            let availableTimes = {
+                beverages: { start: 001, end: 1290 },
+                breakfast: { start: 001, end: 630 },
+                lunch: { start: 720, end: 900 },
+                dinner: { start: 001, end: 1410 }
+            };
+            document.querySelectorAll(".menu-section").forEach(section => section.style.display = "none");
+            if (availableTimes[category]) {
+                let { start, end } = availableTimes[category];
+                if (currentTime < start || currentTime > end) {
+                    alert(`${category.charAt(0).toUpperCase() + category.slice(1)} is not available now.`);
+                    return;
+                }
+            }
+            document.getElementById(category).style.display = "block";
+        }
+
+        function updateQuantity(itemKey, change) {
+            if ((quantities[itemKey] + change) >= 0) {
+                quantities[itemKey] += change;
+                document.getElementById(itemKey + '-qty').innerText = quantities[itemKey];
+                updateTotal();
+            }
+        }
+        function updateTotal() {
+            let total = Object.keys(quantities).reduce((sum, itemKey) => sum + (quantities[itemKey] * prices[itemKey]), 0);
+            document.getElementById("total").innerText = "Total Bill: ₹" + total;
+        }
+
+        function placeOrder() {
+            let orderDetails = "";
+            let total = 0;
+            for (let itemKey in quantities) {
+                if (quantities[itemKey] > 0) {
+                    let itemName = idToName[itemKey] || itemKey;
+                    orderDetails += `${itemName} - ${quantities[itemKey]}\n`;
+                    total += quantities[itemKey] * prices[itemKey];
+                }
+            }
+            if (!orderDetails) {
+                alert("Please select at least one item to order.");
+                return;
+            }
+            let message = `*Order details Room No. /Tabel No. **1:*\n\n${orderDetails}\nTotal Bill: ₹${total}\n\n*Please Verify Order Details Before Sending Message*`;
+            let encodedMessage = encodeURIComponent(message);
+            let whatsappURL = `https://wa.me/918436778056?text=${encodedMessage}`;
+            window.open(whatsappURL, "_blank");
+        }
+    </script>
+</body>
+</html>
