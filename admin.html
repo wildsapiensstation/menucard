@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Demo Restaurant Admin</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 20px; text-align:center;}
+    #logout {float:right;}
+    #loginBox, #panel { max-width:420px; margin:60px auto 30px auto; background:#fff; border-radius:10px; box-shadow:0 3px 12px #bebebe; padding:2em;}
+    h1 {color:#0077cc;}
+    label, input, select {margin-top:10px;}
+    .itemRow {display: flex; justify-content:space-between; margin:10px 0; background:#f2f2f2; padding:8px 12px; border-radius:6px;}
+    .cat-label {margin-right:12px;}
+    .edit-btn, .del-btn { margin-left: 6px; }
+    .search-box { margin: 20px 0; }
+    .btn {padding:8px 18px; border-radius:5px; border:none; background:#0077cc; color:#fff; cursor:pointer;}
+    .btn:disabled {background:#bcbcbc;}
+    #logout { margin-bottom:15px; }
+  </style>
+</head>
+<body>
+  <div id="loginBox">
+    <h1>Admin Login</h1>
+    <input type="email" id="adminEmail" placeholder="Admin Email" /><br>
+    <input type="password" id="adminPass" placeholder="Password" /><br>
+    <button class="btn" onclick="loginAdmin()">Login</button>
+    <div id="loginMsg" style="color:red;margin-top:1em;"></div>
+  </div>
+
+  <div id="panel" style="display:none;">
+    <button id="logout" class="btn" onclick="logoutAdmin()">Logout</button>
+    <h1>Menu Management</h1>
+
+    <!-- ADD or EDIT -->
+    <div id="itemFormBox">
+      <h3 id="formTitle">Add New Item</h3>
+      <input id="itemName" placeholder="Item Name" /><br>
+      <input id="itemPrice" placeholder="Price (₹)" type="number" min="1"/><br>
+      <div>
+        Categories:<br>
+        <label class="cat-label"><input type="radio" name="category" value="beverages" class="category-radio"> Beverages</label>
+        <label class="cat-label"><input type="radio" name="category" value="breakfast" class="category-radio"> Breakfast</label>
+        <label class="cat-label"><input type="radio" name="category" value="lunch" class="category-radio"> Lunch</label>
+        <label class="cat-label"><input type="radio" name="category" value="dinner" class="category-radio"> Dinner</label>
+      </div>
+      <button class="btn" id="saveBtn" onclick="submitItem()">Save</button>
+      <button class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;background-color:#888;">Cancel</button>
+      <div id="formMsg" style="color:green;margin-top:8px;"></div>
+    </div>
+    
+    <!-- SEARCH/EDIT/DELETE -->
+    <div style="margin-top:30px;">
+      <button class="btn" onclick="showSearchBox()">Edit/Delete Item</button>
+      <div class="search-box" id="searchBox" style="display:none;">
+        <input id="searchInput" placeholder="Search for an item..." oninput="searchItems()" />
+        <div id="searchResults" style="margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase and App Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    // --- Place config here ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQ780suirYkoWnyiTElsulpPLep7jZOBs",
+      authDomain: "fir-restaurants-5a977.firebaseapp.com",
+      projectId: "fir-restaurants-5a977",
+      storageBucket: "fir-restaurants-5a977.firebasestorage.app",
+      messagingSenderId: "536510676521",
+      appId: "1:536510676521:web:6a9777efcd5b2508afa638",
+      measurementId: "G-5SSTY9BBYT"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // ------- AUTH ----------
+    function loginAdmin() {
+      const email = document.getElementById('adminEmail').value.trim();
+      const pass = document.getElementById('adminPass').value;
+      auth.signInWithEmailAndPassword(email, pass)
+        .then(() => { document.getElementById('loginBox').style.display="none"; document.getElementById('panel').style.display="block"; resetForm(); })
+        .catch(err => { document.getElementById('loginMsg').textContent = err.message; });
+    }
+    function logoutAdmin() {
+      auth.signOut().then(() => { document.getElementById('panel').style.display="none"; document.getElementById('loginBox').style.display="block"; });
+    }
+
+    // State
+    let editingId = null;
+    let allItems = [];
+
+    // ------- ADD/EDIT -----------
+    function submitItem() {
+      const name = document.getElementById('itemName').value.trim();
+      const price = parseInt(document.getElementById('itemPrice').value);
+      const selectedRadio = document.querySelector('input[name="category"]:checked');
+      const cats = selectedRadio ? [selectedRadio.value] : [];
+      if (!name || !price || cats.length == 0) {
+        document.getElementById('formMsg').textContent = "All fields are required!";
+        return;
+      }
+      document.getElementById('formMsg').textContent = "";
+      const itemObj = { name, price, categories: cats };
+      if (editingId) {
+        db.collection("menuItems").doc(editingId).set(itemObj)
+          .then(()=>{ resetForm(); loadAllItems(); alert("Item updated!"); });
+      } else {
+        db.collection("menuItems").add(itemObj)
+          .then(()=>{ resetForm(); loadAllItems(); alert("Item added!"); });
+      }
+    }
+    function cancelEdit() { resetForm(); }
+    function resetForm() {
+      document.getElementById('itemFormBox').querySelector('h3').textContent = "Add New Item";
+      document.getElementById('itemName').value = "";
+      document.getElementById('itemPrice').value = "";
+      document.querySelectorAll('input[name="category"]').forEach(rb=>rb.checked = false);
+      document.getElementById('saveBtn').textContent = "Save";
+      document.getElementById('cancelEditBtn').style.display = "none";
+      editingId = null;
+      document.getElementById('formMsg').textContent = "";
+      document.getElementById('searchInput') && (document.getElementById('searchInput').value = "");
+      document.getElementById('searchResults') && (document.getElementById('searchResults').innerHTML = "");
+    }
+
+    // ------------ SEARCH/EDIT/DELETE ------------
+    function showSearchBox() {
+      document.getElementById('searchBox').style.display = "block";
+      loadAllItems();
+    }
+    function loadAllItems() {
+      db.collection("menuItems").get().then(snap=>{
+        allItems = [];
+        snap.forEach(doc=> allItems.push({...doc.data(), id: doc.id}));
+        document.getElementById('searchInput') && searchItems();
+      });
+    }
+    function searchItems() {
+      const term = (document.getElementById('searchInput')||{value:""}).value.toLowerCase();
+      let html = "";
+      let filtered = allItems.filter(item=> item.name.toLowerCase().includes(term));
+      if(filtered.length==0) html = "<em>No matches found</em>";
+      filtered.forEach(item=>{
+        html += `<div class="itemRow">
+            <span>${item.name} <span style="color:#aaa;font-size:12px">[₹${item.price}]</span> 
+                <span style="color:#2196F3;font-size:12px">(${item.categories.map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(",")})</span></span>
+            <span>
+                <button class="edit-btn btn" style="background:#ffad1f;" onclick="editItem('${item.id}')">Edit</button>
+                <button class="del-btn btn" style="background:#e53935;" onclick="deleteItem('${item.id}')">Delete</button>
+            </span>
+        </div>`;
+      });
+      document.getElementById('searchResults').innerHTML = html;
+    }
+    function editItem(id) {
+      const item = allItems.find(x=>x.id===id);
+      if(!item) return;
+      document.getElementById('itemFormBox').querySelector('h3').textContent = "Edit Item";
+      document.getElementById('itemName').value = item.name;
+      document.getElementById('itemPrice').value = item.price;
+      // Set the radio as checked
+      document.querySelectorAll('input[name="category"]').forEach(rb => rb.checked = item.categories.includes(rb.value));
+      editingId = id;
+      document.getElementById('saveBtn').textContent = "Update";
+      document.getElementById('cancelEditBtn').style.display = "inline-block";
+      window.scrollTo(0,0);
+    }
+    function deleteItem(id) {
+      if (!confirm('Are you sure you want to delete this item?')) return;
+      db.collection("menuItems").doc(id).delete()
+        .then(()=>{ alert("Deleted!"); loadAllItems(); resetForm(); });
+    }
+
+    // ---- Auto load data if user stays logged in
+    auth.onAuthStateChanged(user=>{
+      if(user) { document.getElementById('loginBox').style.display="none"; document.getElementById('panel').style.display="block"; loadAllItems(); }
+      else { document.getElementById('panel').style.display="none"; document.getElementById('loginBox').style.display="block"; }
+    });
+  </script>
+</body>
+</html>
