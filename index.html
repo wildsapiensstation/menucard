@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo - Order Food</title>
+    <title>Wild Sapiens Station - Order Food</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-image: url('bg.jpeg'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; }
         h1 { font-family: 'Brush Script MT', cursive; font-size: 40px; color: #ffffff; }
@@ -19,7 +19,7 @@
     </style>
 </head>
 <body>
-    <h1>Demo</h1>
+    <h1>Wild Sapiens Station</h1>
 
     <button class="category-button" onclick="showCategory('beverages')">Beverages</button>
     <button class="category-button" onclick="showCategory('breakfast')">Breakfast</button>
@@ -45,7 +45,7 @@
     <div id="total">Total Bill: ₹0</div>
     <br><br>
     <button class="order-button" onclick="placeOrder()">Order Now</button>
-    <!-- Firebase SDK (compat for easy HTML integration) -->
+    
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script>
@@ -61,7 +61,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Maps: id -> price; id -> quantity; id -> name (for order summary)
         let prices = {};
         let quantities = {};
         let idToName = {};
@@ -73,7 +72,7 @@
                 section.innerHTML = "";
                 let catItems = menuItems.filter(item => Array.isArray(item.categories) && item.categories.includes(cat));
                 catItems.forEach(item => {
-                    let itemKey = item.id; // Firestore ID = truly unique key
+                    let itemKey = item.id; 
                     prices[itemKey] = item.price;
                     idToName[itemKey] = item.name;
                     if (!(itemKey in quantities)) quantities[itemKey] = 0;
@@ -101,13 +100,17 @@
             let hour = now.getHours();
             let minute = now.getMinutes();
             let currentTime = hour * 60 + minute;
+            
+            // Times calculated in minutes from midnight (Hour * 60)
             let availableTimes = {
-                beverages: { start: 001, end: 1290 },
-                breakfast: { start: 001, end: 630 },
-                lunch: { start: 720, end: 900 },
-                dinner: { start: 001, end: 1410 }
+                beverages: { start: 360, end: 1380 },  // 6:00 AM - 11:00 PM
+                breakfast: { start: 360, end: 690 },   // 6:00 AM - 11:30 AM
+                lunch: { start: 720, end: 930 },       // 12:00 PM - 3:30 PM
+                dinner: { start: 1140, end: 1380 }     // 7:00 PM - 11:00 PM
             };
+
             document.querySelectorAll(".menu-section").forEach(section => section.style.display = "none");
+            
             if (availableTimes[category]) {
                 let { start, end } = availableTimes[category];
                 if (currentTime < start || currentTime > end) {
@@ -144,9 +147,9 @@
                 alert("Please select at least one item to order.");
                 return;
             }
-            let message = `*Order details From Room **Teak-1:*\n\n${orderDetails}\nTotal Bill: ₹${total}\n\n*Please Verify Order Details Before Sending Message*`;
+            let message = `*Order details Room No. /Tabel No. **1:*\n\n${orderDetails}\nTotal Bill: ₹${total}\n\n*Please Verify Order Details Before Sending Message*`;
             let encodedMessage = encodeURIComponent(message);
-            let whatsappURL = `https://wa.me/919740116661?text=${encodedMessage}`;
+            let whatsappURL = `https://wa.me/918436778056?text=${encodedMessage}`;
             window.open(whatsappURL, "_blank");
         }
     </script>
