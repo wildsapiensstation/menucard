@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wild Sapiens Station - Order Food</title>
+    <title>Demo - Order Food</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; margin: 20px; background-image: url('bg.jpeg'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; }
         h1 { font-family: 'Brush Script MT', cursive; font-size: 40px; color: #ffffff; }
@@ -19,7 +19,7 @@
     </style>
 </head>
 <body>
-    <h1>Wild Sapiens Station</h1>
+    <h1>Demo</h1>
 
     <button class="category-button" onclick="showCategory('beverages')">Beverages</button>
     <button class="category-button" onclick="showCategory('breakfast')">Breakfast</button>
@@ -144,9 +144,9 @@
                 alert("Please select at least one item to order.");
                 return;
             }
-            let message = `*Order details Room No. /Tabel No. **1:*\n\n${orderDetails}\nTotal Bill: ₹${total}\n\n*Please Verify Order Details Before Sending Message*`;
+            let message = `*Order details From Room **Teak-1:*\n\n${orderDetails}\nTotal Bill: ₹${total}\n\n*Please Verify Order Details Before Sending Message*`;
             let encodedMessage = encodeURIComponent(message);
-            let whatsappURL = `https://wa.me/918436778056?text=${encodedMessage}`;
+            let whatsappURL = `https://wa.me/919740116661?text=${encodedMessage}`;
             window.open(whatsappURL, "_blank");
         }
     </script>
